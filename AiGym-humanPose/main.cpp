@@ -26,7 +26,7 @@ int cameraWidth;
 
 
 void openCamera(int cameraId) {
-	cap.open("D:/Project/AiGym/videos/4.mp4");
+	cap.open("D:/Project/AiGym/videos/6.mp4");
 	//cap.open(1);
 }
 
@@ -57,7 +57,7 @@ cv::Mat imagePreProcess(cv::Mat mat)
 }
 
 
-int getHumanPose(cv::Mat frame)
+human_pose_estimation::HumanPose getHumanPose(cv::Mat frame)
 {
 	std::vector<human_pose_estimation::HumanPose> poses = estimator->estimate(frame);
 	human_pose_estimation::renderHumanPose(poses, frame);
@@ -77,10 +77,9 @@ int getHumanPose(cv::Mat frame)
 	{
 		pose = poses[0];
 	}
-	bool poseSymm = CheckPoseSymmetric(pose,frame);
-	bool poseSit = CheckPoseSit(pose, frame);
-	poseEnum pEnum = getCurretPoseState(pose, frame);
-	return 0;
+	//bool poseSymm = CheckPoseSymmetric(pose,frame);
+	
+	return pose;
 }
 
 
@@ -94,13 +93,33 @@ int main(int argc, char* argv[]) {
 	int time = 0;
 	cv::Mat frame;
 	
+	int count = 0;
+	poseEnum lastpose = otherPose;
+	int sitFrameCount = 0;
 	while (true) {
 		cap >> frame;
 		frame = imagePreProcess(frame);
-		int state = getHumanPose(frame);
-		
+		human_pose_estimation::HumanPose pose = getHumanPose(frame);
+		bool poseSit = CheckPoseSit(pose, frame);
+		bool poseSymm = CheckPoseSymmetric(pose, frame);
+		if (poseSit)
+		{
+			sitFrameCount++;
+		}
+		else
+		{
+			sitFrameCount = 0;
+		}
+		if (sitFrameCount > SIT_FRAME_COUNT)
+		{
+			poseEnum currentPose = getCurretPoseState(pose, frame);
+			countNum(count, lastpose, currentPose);
+		}
+		cv::putText(frame, to_string(poseSymm), cv::Point(100, 60), 2, 2.0f, cv::Scalar(0, 0, 255));
+		//cv::putText(frame, poseEnu2String(lastpose), cv::Point(100, 100), 2, 1.0f, cv::Scalar(0, 0, 255));
+		//cv::putText(frame, to_string(count), cv::Point(100, 60), 2, 2.0f, cv::Scalar(0, 0, 255));
 		cv::imshow("frame", frame);
-		cv::waitKey(100);
+		cv::waitKey(5);
 	}
 	return 0;
 }

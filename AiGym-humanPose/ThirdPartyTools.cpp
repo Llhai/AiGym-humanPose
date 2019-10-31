@@ -5,7 +5,7 @@ bool ThirdPartyTools::Check3PointCommonLine(Point2f p1, Point2f p2, Point2f p3, 
 	Point2f v1 = p2 - p1;
 	Point2f v2 = p3 - p1;
 	float angle = fabs(Get2VecAngle(v1.y, v1.x, v2.y, v2.x));
-	std::cout << "angle " << angle << std::endl;
+	//std::cout << "angle " << angle << std::endl;
 
 	if (angle < thresholds)
 	{

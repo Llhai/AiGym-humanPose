@@ -6,6 +6,12 @@
 using namespace std;
 
 enum poseEnum { otherPose, pullStart, pullForward, pullBack, pullStraight };
+void countNum(int& num, cv::Mat frame);
+string poseEnu2String(poseEnum pose);
+bool CheckPoseSit(human_pose_estimation::HumanPose pose, cv::Mat frame);
+bool CheckPoseSymmetric(human_pose_estimation::HumanPose pose, cv::Mat frame);
+poseEnum getCurretPoseState(human_pose_estimation::HumanPose pose, cv::Mat frame);
+
 bool CheckPoseSit(human_pose_estimation::HumanPose pose, cv::Mat frame)
 {
 	bool lumbarInRange = false;
@@ -19,16 +25,15 @@ bool CheckPoseSit(human_pose_estimation::HumanPose pose, cv::Mat frame)
 		lumbarInRange = true;
 	}
 
-	//check knee foot
-	if (pose.keypoints[8].x< pose.keypoints[9].x || pose.keypoints[11].x>pose.keypoints[12].x)
+	if (lumbarInRange)
 	{
-		poseSit = false;
+		//check knee foot
+		if (pose.keypoints[8].x> pose.keypoints[9].x && pose.keypoints[11].x<pose.keypoints[12].x)
+		{
+			poseSit = true;
+		}
 	}
-	if (pose.keypoints[8].x< pose.keypoints[10].x || pose.keypoints[11].x>pose.keypoints[13].x)
-	{
-		poseSit = false;
-	}
-	poseSit = true;
+	
 	std::string putString = poseSit == true ? "true" : "false";
 	//cv::putText(frame, putString, cv::Point(100, 100), 2, 2.0f, cv::Scalar(255, 255, 0));
 
@@ -65,10 +70,22 @@ bool CheckPoseSymmetric(human_pose_estimation::HumanPose pose, cv::Mat frame)
 poseEnum getCurretPoseState(human_pose_estimation::HumanPose pose, cv::Mat frame)
 {
 	poseEnum poseenu = otherPose;
+	string putText = "Message ";
+
+	// height differ between shouler and elbow
+	float leftHeightDiffer = fabs (pose.keypoints[2].y - pose.keypoints[3].y);
+	float rightHeightDiffer = fabs(pose.keypoints[5].y - pose.keypoints[6].y);
+	//putText = "left "+to_string(int (leftHeightDiffer))+" "+ "right " + to_string(int(rightHeightDiffer));
+	if (leftHeightDiffer < PULL_START_HEIGHT_BETWEEN_SHOULDER_AND_ELBOW
+		&& rightHeightDiffer < PULL_START_HEIGHT_BETWEEN_SHOULDER_AND_ELBOW)
+	{
+		poseenu = pullStart;
+	}
+
 
 	bool leftArmCommonLine = ThirdPartyTools::Check3PointCommonLine(pose.keypoints[2], pose.keypoints[3], pose.keypoints[4], COMMON_LINE_COUNT);
 	bool rightArmCommonLine = ThirdPartyTools::Check3PointCommonLine(pose.keypoints[5], pose.keypoints[6], pose.keypoints[7], COMMON_LINE_COUNT);
-	string putText = "Not Common Line ";
+	
 	if (leftArmCommonLine&&rightArmCommonLine)
 	{
 		float leftBigArmLen =ThirdPartyTools::GetDisBetween2Point(pose.keypoints[2], pose.keypoints[3]) ;
@@ -86,12 +103,25 @@ poseEnum getCurretPoseState(human_pose_estimation::HumanPose pose, cv::Mat frame
 		{
 			poseenu = pullStart;
 		}
-		putText = to_string(ArmRate);
 	}
 	else
 	{
-		float leftAngle = ThirdPartyTools::Get2VecAngle();
-		float rightAngle = ThirdPartyTools::Get2VecAngle();
+		//ÅÐ¶Ï ÊÖ±Û½Ç¶È 
+		//2->3 -----> 3->4
+		Point leftV1 = pose.keypoints[4] - pose.keypoints[3];
+		Point leftV2 = pose.keypoints[3] - pose.keypoints[2];
+		float leftAngle = ThirdPartyTools::Get2VecAngle(leftV1.x, leftV1.y, leftV2.x, leftV2.y);		
+		//6->7 -----> 5->6
+		Point rightV1 = pose.keypoints[6] - pose.keypoints[5];
+		Point rightV2 = pose.keypoints[7] - pose.keypoints[6];
+		float rightAngle = ThirdPartyTools::Get2VecAngle(rightV1.x,rightV1.y,rightV2.x,rightV2.y);
+		if (leftAngle > PULL_START_ANGLE_MIN&& leftAngle<PULL_START_ANGLE_MAX 
+			&& rightAngle>PULL_START_ANGLE_MIN&& rightAngle < PULL_START_ANGLE_MAX)
+		{
+			poseenu = pullStart;
+		}
+		//putText = "left "+to_string(int(leftAngle))+"   ""right " + to_string(int(rightAngle));
+		//putText = to_string(rightAngle);
 	}
 	/*else if (leftArmCommonLine)
 	{
@@ -106,7 +136,61 @@ poseEnum getCurretPoseState(human_pose_estimation::HumanPose pose, cv::Mat frame
 		putText = "Both Not Common Line ";
 
 	}*/
-	poseenu =  otherPose;
-	cv::putText(frame, putText, cv::Point(100, 100), 2, 1.0f, cv::Scalar(0, 0, 0));
+	putText = poseEnu2String(poseenu);
+	//cv::putText(frame, putText, cv::Point(100, 40), 2, 1.0f, cv::Scalar(255, 0, 0));
 	return poseenu;
+}
+
+
+void countNum(int& num,poseEnum& lastPose, poseEnum currentPose)
+{
+	//cout << poseEnu2String(lastPose) << endl;
+	switch (lastPose)
+	{
+	case pullStart:
+		if (currentPose == pullStraight)
+		{
+			lastPose = pullStraight;
+			num++;
+			cout << "+++++++++++" << endl;
+		}
+		break;
+	case pullStraight:
+		if (currentPose == pullStart)
+		{
+			lastPose = pullStart;
+		}
+	case otherPose:
+		if (currentPose == pullStart)
+		{
+			lastPose = pullStart;
+		}
+	default :
+		break;
+	}
+	return;
+}
+
+string poseEnu2String(poseEnum pose)
+{
+	string temp = " ";
+	switch (pose)
+	{
+	case otherPose:
+		temp = "otherPose";
+		break;
+	case pullStart:
+		temp = "pull Start";
+		break;
+	case pullForward:
+		temp = "pull Forward";
+		break;
+	case pullBack:
+		temp = "pull Back";
+		break;
+	case pullStraight:
+		temp = "pull Straight";
+		break;
+	}
+	return temp;
 }
