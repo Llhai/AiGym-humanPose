@@ -1,0 +1,8 @@
+#pragma once
+
+#define COMMON_LINE_COUNT 5
+#define PULL_STRAIGHT_RATE 1.3
+#define PULL_START_RATE 4
+
+#define PIXEL_DIFFER_THRESHOLD 20
+#define SYMM_COUNT_THRESHOLD 5
