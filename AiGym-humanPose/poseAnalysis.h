@@ -47,12 +47,12 @@ bool CheckPoseSymmetric(human_pose_estimation::HumanPose pose, cv::Mat frame)
 	for (int i = 0; i < 6; i++)
 	{
 		int disY = fabs(pose.keypoints[pointPair[i][0]].y - pose.keypoints[pointPair[i][1]].y);
-		//cv::putText(frame, to_string(disY), pose.keypoints[pointPair[i][0]], 2, 1.0f, cv::Scalar(255, 255, 0));
+		cv::putText(frame, to_string(disY), pose.keypoints[pointPair[i][0]], 2, 1.0f, cv::Scalar(255, 255, 0));
 
 		if (fabs(pose.keypoints[pointPair[i][0]].y - pose.keypoints[pointPair[i][1]].y) < PIXEL_DIFFER_THRESHOLD)
 		{
 			score++;
-			//cv::line(frame, pose.keypoints[pointPair[i][0]], pose.keypoints[pointPair[i][1]], cv::Scalar(255, 255, 0));
+			cv::line(frame, pose.keypoints[pointPair[i][0]], pose.keypoints[pointPair[i][1]], cv::Scalar(255, 255, 0));
 		}
 	}
 
@@ -67,10 +67,32 @@ bool CheckPoseSymmetric(human_pose_estimation::HumanPose pose, cv::Mat frame)
 
 }
 
+bool checkPosePull(human_pose_estimation::HumanPose pose, cv::Mat frame)
+{
+	int arm[2][3] = { {4,3,2},{5,6,7} };
+	bool isPullPose = true;
+	for (int i = 0; i < 2; i++)
+	{
+		if (pose.keypoints[arm[i][0]].x > pose.keypoints[arm[i][1]].x
+			|| pose.keypoints[arm[i][1]].x > pose.keypoints[arm[i][2]].x)
+		{
+			isPullPose = false;
+		}
+	}
+	return isPullPose;
+}
+
 poseEnum getCurretPoseState(human_pose_estimation::HumanPose pose, cv::Mat frame)
 {
 	poseEnum poseenu = otherPose;
 	string putText = "Message ";
+
+	bool pullPose = checkPosePull(pose, frame);
+
+	if (pullPose)
+	{
+		poseenu = pullForward;
+	}
 
 	// height differ between shouler and elbow
 	float leftHeightDiffer = fabs (pose.keypoints[2].y - pose.keypoints[3].y);
@@ -103,6 +125,7 @@ poseEnum getCurretPoseState(human_pose_estimation::HumanPose pose, cv::Mat frame
 		{
 			poseenu = pullStart;
 		}
+		//cv::putText(frame, to_string(ArmRate), cv::Point(100, 40), 2, 1.0f, cv::Scalar(255, 0, 0));
 	}
 	else
 	{
@@ -136,7 +159,7 @@ poseEnum getCurretPoseState(human_pose_estimation::HumanPose pose, cv::Mat frame
 		putText = "Both Not Common Line ";
 
 	}*/
-	putText = poseEnu2String(poseenu);
+	//putText = poseEnu2String(poseenu);
 	//cv::putText(frame, putText, cv::Point(100, 40), 2, 1.0f, cv::Scalar(255, 0, 0));
 	return poseenu;
 }
@@ -152,13 +175,21 @@ void countNum(int& num,poseEnum& lastPose, poseEnum currentPose)
 		{
 			lastPose = pullStraight;
 			num++;
-			cout << "+++++++++++" << endl;
+			//cout << "+++++++++++" << endl;
+		}
+		else if (currentPose == otherPose)
+		{
+			lastPose = otherPose;
 		}
 		break;
 	case pullStraight:
 		if (currentPose == pullStart)
 		{
 			lastPose = pullStart;
+		}
+		else if (currentPose == otherPose)
+		{
+			lastPose = otherPose;
 		}
 	case otherPose:
 		if (currentPose == pullStart)

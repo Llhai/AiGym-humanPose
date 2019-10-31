@@ -26,7 +26,7 @@ int cameraWidth;
 
 
 void openCamera(int cameraId) {
-	cap.open("D:/Project/AiGym/videos/6.mp4");
+	cap.open("D:/Project/AiGym/videos/4.mp4");
 	//cap.open(1);
 }
 
@@ -89,8 +89,6 @@ int main(int argc, char* argv[]) {
 	initMonocularestimator();
 	openCamera(0);
 	double lastTime = 0;
-
-	int time = 0;
 	cv::Mat frame;
 	
 	int count = 0;
@@ -101,7 +99,6 @@ int main(int argc, char* argv[]) {
 		frame = imagePreProcess(frame);
 		human_pose_estimation::HumanPose pose = getHumanPose(frame);
 		bool poseSit = CheckPoseSit(pose, frame);
-		bool poseSymm = CheckPoseSymmetric(pose, frame);
 		if (poseSit)
 		{
 			sitFrameCount++;
@@ -114,10 +111,13 @@ int main(int argc, char* argv[]) {
 		{
 			poseEnum currentPose = getCurretPoseState(pose, frame);
 			countNum(count, lastpose, currentPose);
+			cv::putText(frame, poseEnu2String(lastpose), cv::Point(100, 100), 2, 1.0f, cv::Scalar(0, 0, 255));
+			cv::putText(frame, to_string(count), cv::Point(100, 60), 2, 2.0f, cv::Scalar(0, 0, 255));
 		}
-		cv::putText(frame, to_string(poseSymm), cv::Point(100, 60), 2, 2.0f, cv::Scalar(0, 0, 255));
-		//cv::putText(frame, poseEnu2String(lastpose), cv::Point(100, 100), 2, 1.0f, cv::Scalar(0, 0, 255));
-		//cv::putText(frame, to_string(count), cv::Point(100, 60), 2, 2.0f, cv::Scalar(0, 0, 255));
+		else
+		{
+			cv::putText(frame, "not sit", cv::Point(100, 100), 2, 1.0f, cv::Scalar(0, 0, 255));
+		}
 		cv::imshow("frame", frame);
 		cv::waitKey(5);
 	}
